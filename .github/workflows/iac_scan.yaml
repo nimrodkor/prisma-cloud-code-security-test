@@ -13,12 +13,9 @@ jobs:
       - name: Run Bridgecrew 
         id: Bridgecrew
         uses: bridgecrewio/bridgecrew-action@master
-        env:
-          PRISMA_API_URL: https://api3.prismacloud.io
         with:
-          api-key: ${{ secrets.PRISMA_CLOUD_CODE_SECURITY_ACCESS_KEY }}::${{ secrets.PRISMA_CLOUD_CODE_SECURITY_SECRET_KEY }}
           soft_fail: true
-          log_level: WARNING
+          log_level: INFO
 #          directory: cfTemplates
 #          framework: cloudformation
 #          quiet: true
