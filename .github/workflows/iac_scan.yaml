@@ -1,0 +1,24 @@
+name: Prisma Cloud IaC Scan
+on: 
+  workflow_dispatch:
+  schedule:
+    - cron: '10,30,50 * * * *'  
+jobs:
+  prisma_cloud_iac_scan:
+    runs-on: [self-hosted, ubuntu-latest]
+    name: Run Prisma Cloud IaC scan to check CloudFormation templates 
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      - name: Run Bridgecrew 
+        id: Bridgecrew
+        uses: bridgecrewio/bridgecrew-action@master
+        env:
+          PRISMA_API_URL: https://api3.prismacloud.io
+        with:
+          api-key: ${{ secrets.PRISMA_CLOUD_CODE_SECURITY_ACCESS_KEY }}::${{ secrets.PRISMA_CLOUD_CODE_SECURITY_SECRET_KEY }}
+          soft_fail: true
+          log_level: WARNING
+#          directory: cfTemplates
+#          framework: cloudformation
+#          quiet: true

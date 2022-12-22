@@ -1,0 +1,31 @@
+AWSTemplateFormatVersion: 2010-09-09 
+Description: Creates a simple stack
+
+Resources:
+  DummyBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: ecs-tech-simple-cfn-bucket
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      # Missing BucketEncryption
+      # BucketEncryption: 
+      #   ServerSideEncryptionConfiguration:
+      #     - ServerSideEncryptionByDefault:
+      #         SSEAlgorithm: aws:kms
+      #         KMSMasterKeyID: { Ref: IacScanApiKeysKmsKey }
+      # Missing LoggingConfiguration  
+      # LoggingConfiguration:
+      #   DestinationBucketName: !Sub "${AWS::AccountId}-${AWS::Region}-logging1"
+      #   LogFilePrefix: "sal/ecs-tech-simple-cfn-bucket/"
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: Expiration
+            ExpirationInDays: 1
+            Status: Enabled

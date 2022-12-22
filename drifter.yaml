@@ -1,0 +1,14 @@
+templates:
+  # - repo: templates-securian
+  #   files:
+  #     "Jenkinsfile": Jenkinsfile/ecs-tech/coyote
+  #     ".gitignore": gitignore/cloudformation
+  #     ".flake8": lintconfig/.flake8
+  #     ".pre-commit-config.yaml": lintconfig/.pre-commit-config.yaml
+  - repo: actions-workflows
+    files:
+      .github/workflows/ci.yaml: ci/cicada
+  #     .github/workflows/release.yaml: release/deploy/elderberry-python3.8.yaml
+  # - repo: ecs-actions-linter-action
+  #   files:
+  #     .github/workflows/ecs-lint.yaml: sample-workflow.yaml

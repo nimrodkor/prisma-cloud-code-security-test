@@ -1,0 +1,139 @@
+name: GitHub Actions Demo
+on:
+  workflow_dispatch:
+jobs:
+  Explore-GitHub-Actions:
+    runs-on: [self-hosted, ubuntu-latest]
+    steps:
+      # Just experimenting with metadata available
+      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+      - name: Get branch name
+        env:
+          REF: ${{github.ref}} 
+        run: echo "BRANCH_NAME=${REF##*/}" >> $GITHUB_ENV
+      - name: Show branch name
+        run: echo "BRANCH_NAME=${{env.BRANCH_NAME}}"
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
+        run: echo "$GITHUB_CONTEXT"
+      - name: Dump job context
+        env:
+          JOB_CONTEXT: ${{ toJSON(job) }}
+        run: echo "$JOB_CONTEXT"
+      - name: Dump steps context
+        env:
+          STEPS_CONTEXT: ${{ toJSON(steps) }}
+        run: echo "$STEPS_CONTEXT"
+      - name: Dump runner context
+        env:
+          RUNNER_CONTEXT: ${{ toJSON(runner) }}
+        run: echo "$RUNNER_CONTEXT"
+      - name: Dump env context
+        env:
+          ENV_CONTEXT: ${{ toJSON(env) }}
+        run: echo "$ENV_CONTEXT"
+      - name: List files in the repository
+        run: |
+          ls ${{ github.workspace }}
+          find ${{ github.workspace }} -maxdepth 2 -ls
+      - run: echo "🍏 This job's status is ${{ job.status }}."
+  prisma_cloud_iac_scan:
+    # Source: https://github.com/prisma-cloud-shiftleft/iac-scan-action
+    #
+    # OI: Scan seems to recognize that there may be multiple resources (template files) to scan.  However, only results for one file seems to be published.
+    # OI: Is this scan different for serverless?  Maybe not, assuming runs after "serverless package" step.
+    # OI: Do we need to be more specific about files that get scanned?  For example, copy to separate folder and use "scan_path" parameter.
+    #       Right now, it might be submitting all files in repo for scan.  Somehow it recognizes what files can be evaluated.
+    # OI: Can we get the detailed scan results to show in the Workflow Summary, to make more convenient to view?  Or at least add a link to detailed results.
+    # OI: Audit - 1) how to verify that IaC scan is run whenever a workflow builds a CFT, 2) when run, how to verify that input parameters are not altered
+    #       (without prior approval)
+    #
+    needs: Explore-GitHub-Actions
+    runs-on: [self-hosted, ubuntu-latest]
+    name: Run Prisma Cloud IaC Scan to check CloudFormation templates 
+    steps:
+      # Deriving branch name from ref to use in asset_name parameter for IaC scan
+      - name: Set BRANCH_NAME environment variable
+        env:
+          REF: ${{github.ref}} 
+        # https://stackoverflow.com/questions/9532654/expression-after-last-specific-character  
+        run: echo "BRANCH_NAME=${REF##*/}" >> $GITHUB_ENV
+      - name: Show BRANCH_NAME
+        run: echo "BRANCH_NAME=${{env.BRANCH_NAME}}"
+      - name: Show asset_name
+        run: |
+          echo "asset_name_opt_1=${{ github.repository }}:${{env.BRANCH_NAME}}:${{ github.run_id }}"
+          echo "asset_name_opt_2=${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}"
+          echo "asset_name_opt_3=${{ github.repository }}:${{github.sha}}:${{ github.run_id }}"
+          echo "asset_name_opt_4=${{ github.repository }}:${{github.ref}}:${{ github.run_id }}"
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Copy files to scan to separate directory
+        run: |
+          pwd 
+          echo "before"
+          ls ${{ github.workspace }}
+          rm -rf .iacScan/
+          echo "after"         
+          mkdir .iacScan
+          ls ${{ github.workspace }}
+          cp ./cfTemplates/simple*.yaml .iacScan/
+          find ${{ github.workspace }} -maxdepth 2 -ls
+      - name: Write contents of file
+        run: |
+          CFT_CONTENTS=$(cat ./.iacScan/simple.yaml)
+          echo "$CFT_CONTENTS"
+      - name: Run Scan on IaC files in the repository
+        uses: prisma-cloud-shiftleft/iac-scan-action@v1.1
+        id: iac-scan
+        with:
+          prisma_api_url: ${{ secrets.PRISMA_CLOUD_IAC_SCAN_API_URL }}
+          access_key: ${{ secrets.PRISMA_CLOUD_ACCESS_KEY }}
+          secret_key: ${{ secrets.PRISMA_CLOUD_SECRET_KEY }}
+          asset_name: "${{ github.repository }}:${{env.BRANCH_NAME}}:${{ github.run_id }}"
+          scan_path: "./cfTemplates/"
+          use_scan_path_when_pr: true
+          template_type: 'CFT'
+          failure_criteria: ${{ secrets.PRISMA_CLOUD_IAC_SCAN_CRITERIA }}
+          create_pull_request_check: true
+          create_pull_request_comment: true
+          tags: "run_number: ${{ github.run_number }}"
+      - name: Upload scan result artifact
+        uses: actions/upload-artifact@v2
+        if: success() || failure()
+        with:
+          name: iac_scan_result
+          path: ${{ steps.iac-scan.outputs.iac_scan_result_path }}
+      # Attempting to add content of one of result files (MD, CSV) on Workflow Summary..
+      - name: Set results as output MD
+        run: |
+          RESULT=$(cat ${{steps.iac-scan.outputs.iac_scan_result_md_path}})
+          RESULT="${RESULT//'%'/'%25'}"
+          RESULT="${RESULT//$'\n'/'%0A'}"
+          RESULT="${RESULT//$'\r'/'%0D'}"
+          echo "::warning ::$RESULT"
+      # Uploads results.sarif to GitHub repository using the upload-sarif action
+      # Fails with error: “Error: Code scanning is not enabled. Please contact your local GitHub Enterprise site administrator for assistance.”
+      # [AO] This is tied to the “Advanced Security” features, which are an extra license cost. We don’t have access to this now. 
+      #      I think Mike Brewer was talking to GitHub about setting up a demo of those features.
+      #- uses: github/codeql-action/upload-sarif@v1
+      #  with:
+      #    # Path to SARIF file relative to the root of the repository
+      #    sarif_file: ${{steps.iac-scan.outputs.iac_scan_result_sarif_path}}
+      # Showing outputs to see what is in each
+      - name: Show outputs
+        run: | 
+          echo "iac_scan_result=${{steps.iac-scan.outputs.iac_scan_result}}"
+          echo "iac_scan_result_summary=${{steps.iac-scan.outputs.iac_scan_result_summary}}"
+          echo "iac_scan_result_path=${{steps.iac-scan.outputs.iac_scan_result_path}}"
+          echo "iac_scan_result_issues_csv_path=${{steps.iac-scan.outputs.iac_scan_result_issues_csv_path}}"
+          echo "iac_scan_result_errors_csv_path=${{steps.iac-scan.outputs.iac_scan_result_errors_csv_path}}"
+          echo "iac_scan_result_sarif_path=${{steps.iac-scan.outputs.iac_scan_result_sarif_path}}"
+          echo "iac_scan_result_md_path=${{steps.iac-scan.outputs.iac_scan_result_md_path}}"
+          echo "iac_scan_result_issues_csv_path"
+          cat "${{steps.iac-scan.outputs.iac_scan_result_issues_csv_path}}"
+          echo "iac_scan_result_md_path"
+          cat "${{steps.iac-scan.outputs.iac_scan_result_md_path}}"

@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Creates a simple stack
+
+Resources:
+  DummyBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: ecs-tech-simple-cfn-bucket
+      AccessControl: Private
+      # Missing PublicAccessBlockConfiguration
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LoggingConfiguration:
+        DestinationBucketName: !Sub "${AWS::AccountId}-${AWS::Region}-logging1"
+        LogFilePrefix: "sal/ecs-tech-simple-cfn-bucket3/"
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: Expiration
+            ExpirationInDays: 1
+            Status: Enabled
+
+  DummyBucket2:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: ecs-tech-simple-cfn-bucket-2
+      AccessControl: Private
+      # Missing PublicAccessBlockConfiguration
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LoggingConfiguration:
+        DestinationBucketName: !Sub "${AWS::AccountId}-${AWS::Region}-logging1"
+        LogFilePrefix: "sal/ecs-tech-simple-cfn-bucket3/"
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: Expiration
+            ExpirationInDays: 1
+            Status: Enabled
