@@ -5,7 +5,7 @@ on:
     - cron: '10,30,50 * * * *'  
 jobs:
   prisma_cloud_iac_scan:
-    runs-on: [self-hosted, ubuntu-latest]
+    runs-on: ubuntu-latest
     name: Run Prisma Cloud IaC scan to check CloudFormation templates 
     steps:
       - name: Checkout repo
