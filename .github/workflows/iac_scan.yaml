@@ -16,6 +16,7 @@ jobs:
         with:
           soft_fail: true
           log_level: INFO
+          framework: secrets
 #          directory: cfTemplates
 #          framework: cloudformation
 #          quiet: true
